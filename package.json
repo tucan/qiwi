@@ -1,0 +1,22 @@
+{
+	"name": "qiwi",
+	"version": "0.1.0-alfa",
+	"description": "Client for QIWI Mobile",
+	"keywords": ["qiwi", "money", "payment"],
+	"main": "./lib/index",
+	"licence": "MIT",
+	"author": {
+		"name": "Vladimir Andreev",
+		"email": "volodya@netfolder.ru"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/tucan/qiwi.git"
+	},
+	"devDependencies": {
+		"coffee-script": "1.x"
+	},
+	"scripts": {
+		"prepublish": "./node_modules/.bin/coffee -c -b -o lib src"
+	}
+}
