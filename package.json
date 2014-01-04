@@ -1,7 +1,7 @@
 {
 	"name": "qiwi",
 	"version": "0.1.0-alfa",
-	"description": "Client for QIWI Mobile",
+	"description": "Client for QIWI",
 	"keywords": ["qiwi", "money", "payment"],
 	"main": "./lib/index",
 	"licence": "MIT",
@@ -12,6 +12,10 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/tucan/qiwi.git"
+	},
+	"dependencies": {
+		"qs": "0.x",
+		"ursa": "0.x"
 	},
 	"devDependencies": {
 		"coffee-script": "1.x"
