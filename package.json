@@ -15,7 +15,8 @@
 	},
 	"dependencies": {
 		"qs": "0.x",
-		"ursa": "0.x"
+		"ursa": "0.x",
+		"nice-xml": "0.x"
 	},
 	"devDependencies": {
 		"coffee-script": "1.x"
