@@ -5,8 +5,10 @@
 HTTPS = require('https')
 Crypto = require('crypto')
 RSA = require('ursa')
+
 Iconv = require('iconv-lite')
-QueryString = require('qs')
+XML = require('nice-xml')
+QS = require('qs')
 
 # QIWI client
 
@@ -20,9 +22,16 @@ class Client
 
 	@REQUEST_CHARSET: 'utf-8'
 
-	# Default IV for AES
+	# Cipher parameters for the protocol
 
-	@CIPHER_IV: new Buffer([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+	CIPHER_NAME = 'aes-256-cbc'
+	CIPHER_IV = new Buffer([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+	CIPHER_KEY_LENGTH = 32
+
+	# Magic values of the protocol
+
+	REQUEST_PREFIX = 'v3.qiwi-'
+	RESPONSE_MARKER = 'B64\n'
 
 	# Object constructor
 
@@ -30,26 +39,44 @@ class Client
 		@_host = @constructor.SERVER_NAME
 		@_port = @constructor.SERVER_PORT
 
-		@_sessionId = null
-		@_key = null
+		@_charset = @constructor.REQUEST_CHARSET
 
-		@_charset = 'utf-8'
+		@_extra = Object.create(null)
 
-	#
-
-	_encrypt: (data) ->
-		cipher = Crypto.createCipheriv('aes-256-cbc', @_key, @constructor.IV)
-		encryptedText = cipher.update(data).toString('hex')
-		encryptedText += cipher.final().toString('hex')
-
-		'v3.qiwi-' + @_sessionId + '\n' + new Buffer(encryptedText, 'hex').toString('base64')
+		@_session = null
+		@_token = null
 
 	#
 
-	_decrypt: (data) ->
-		decipher = Crypto.createDecipheriv('aes-256-cbc', @_key, @constructor.IV)
-		decryptedText = decipher.update(data, 'base64').toString('utf8')
-		decryptedText += decipher.final().toString('utf8')
+	_encryptKey = (publicKey, nonce, aesKey) ->
+		blob = new Buffer(2 + nonce.length + aesKey.length)
+
+		blob[0] = nonce.length
+		nonce.copy(blob, 1)
+
+		blob[1 + nonce.length] = aesKey.length
+		aesKey.copy(blob, 1 + nonce.length + 1)
+
+		encodedKey = publicKey.encrypt(blob, null, 'base64', RSA.RSA_PKCS1_PADDING)
+
+	# Encrypts request body and returns string containing encrypted data
+
+	_encryptBody: (data) ->
+		cipher = Crypto.createCipheriv(CIPHER_NAME, @_session.key, CIPHER_IV)
+
+		cipher.end(data)
+		blob = cipher.read()
+
+		REQUEST_PREFIX + @_session.id + '\n' + blob.toString('base64')
+
+	#
+
+	_decryptBody: (text) ->
+		decipher = Crypto.createDecipheriv(CIPHER_NAME, @_session.key, CIPHER_IV)
+
+		decipher.end(text, 'base64')
+
+		decipher.read()
 
 	# Generate request options based on provided parameters
  
@@ -69,7 +96,7 @@ class Client
 
 	# Generate onResponse handler for provided callback
 
-	_responseHandler: (callback) -> (response) ->
+	_responseHandler: (callback) -> (response) =>
 		# Array for arriving chunks
 
 		chunks = []
@@ -82,15 +109,143 @@ class Client
 			undefined
 		)
 
-		response.on('end', () ->
+		response.on('end', () =>
 			body = Buffer.concat(chunks)
 
-			callback(null, body.toString('utf-8'))
+			text = Iconv.decode(body, 'utf-8')
+
+			# Decrypt text (if it was encrypted of course)
+
+			if text[0..3] is RESPONSE_MARKER
+				text = Iconv.decode(@_decryptBody(text[4..]), 'utf-8')
+
+			output = XML.parse(text)
+
+			callback(null, output.response)
 
 			undefined
 		)
 
 		undefined
+
+	# Sends init request to the server
+
+	sendInit: (input, callback) ->
+		# Make serialization and encode derived text
+
+		blob = Iconv.encode(QS.stringify(input), @_charset)
+
+		# Create request using generated options
+
+		request = HTTPS.request(@_requestOptions('newcrypt_init_session', blob))
+
+		# Assign necessary event handlers
+
+		request.on('response', @_responseHandler(callback))
+
+		request.on('error', (error) ->
+			callback?(error)
+
+			undefined
+		)
+
+		# Write body and finish request
+
+		request.end(blob)
+
+		@
+
+	# Creates new session using provided public key
+
+	createSession: (publicKey, callback) ->
+		publicKey = RSA.createPublicKey(publicKey)
+
+		# Phase 1 - receive server nonce
+
+		@sendInit(command: 'init_start', (error, output) =>
+			# Extract necessary data from server response
+
+			sessionId = output.session_id
+			serverNonce = new Buffer(output.init_hs, 'base64')
+
+			# Create AES key and encrypt it using public RSA key
+
+			aesKey = Crypto.randomBytes(CIPHER_KEY_LENGTH)
+			encryptedKey = _encryptKey(publicKey, serverNonce, aesKey)
+
+			# Phase 2 - send our encrypted key to the server
+
+			input = command: 'init_get_key', session_id: sessionId, key_v: 2, key_hs: encryptedKey
+
+			@sendInit(input, (error) =>
+				unless error?
+					session = id: sessionId, key: aesKey
+					callback?(null, session)
+				else
+					callback?(error)
+
+				undefined
+			)
+
+			undefined
+		)
+		
+		@
+
+	# Makes provided session current
+
+	setSession: (session) ->
+		@_session = session
+
+		@
+
+	# Removes previously stored session data
+
+	removeSession: () ->
+		@_session = null
+
+		@
+
+	# Invokes pointed method on the remote side
+
+	invokeMethod: (name, input, callback) ->
+		# Form request data based on provided input
+
+		envelope = request: 'request-type': name
+
+		extra = []
+		extra.push($: (name: key), $text: value) for key, value of @_extra
+
+		envelope.request.extra = extra if extra.length
+		envelope.request[key] = value for key, value of input
+
+		# Make serialization and encode derived text
+
+		blob = Iconv.encode(XML.stringify(envelope), @_charset)
+
+		# Encrypt plain body and encode derived cipher-text
+
+		blob = Iconv.encode(@_encryptBody(blob), @_charset)
+
+		# Create request using generated options
+
+		request = HTTPS.request(@_requestOptions('newcrypt', blob))
+
+		# Assign necessary event handlers
+
+		request.on('response', @_responseHandler(callback))
+
+		request.on('error', (error) ->
+			callback?(error)
+
+			undefined
+		)
+
+		# Write body and finish request
+
+		request.end(blob)
+
+		@
 
 	# Sets extra field to be sent to the server
 
@@ -108,118 +263,85 @@ class Client
 
 	#
 
-	sendRequest: (endpoint, data, callback) ->
-		# Make serialization and derived text encoding
+	receiveToken: (input, callback) ->
+		input =
+			'client-id': 'android'
+			'auth-version': '2.0'
 
-		body = Iconv.encode(QueryString.stringify(data), @_charset)
+			phone: input.phone
+			password: input.password
+			code: input.code
+			vcode: input.vcode
 
-		# Create request using generated options
+		@invokeMethod('oauth-token', input, callback)
 
-		request = HTTPS.request(@_requestOptions(endpoint, body))
+	#
 
-		# Assign necessary event handlers
-
-		request.on('response', @_responseHandler(callback))
-
-		request.on('error', (error) ->
-			callback?(error)
-
-			undefined
-		)
-
-		# Write body and finish request
-
-		request.end(body)
+	setToken: (token) ->
+		@_token = token
 
 		@
 
 	#
 
-	sendEncryptedRequest: (endpoint, data, callback) ->
-		# Make serialization and derived text encoding
-
-		encryptedText = @_encrypt(data)
-		#console.log(encryptedText)
-
-		body = Iconv.encode(encryptedText, @_charset)
-
-		# Create request using generated options
-
-		request = HTTPS.request(@_requestOptions(endpoint, body))
-
-		# Assign necessary event handlers
-
-		request.on('response', @_responseHandler(callback))
-
-		request.on('error', (error) ->
-			callback?(error)
-
-			undefined
-		)
-
-		# Write body and finish request
-
-		request.end(body)
+	removeToken: () ->
+		@_token = null
 
 		@
 
-	# Creates new session using provided public key
+	#
 
-	createSession: (publicKey, callback) ->
-		@sendRequest('newcrypt_init_session', command: 'init_start', (error, data) =>
-			# Pseudo XML parsing
+	balanceInfo: (callback) ->
+		input =
+			'terminal-id': @_token.owner
+			extra: $: (name: 'token'), $text: @_token.value
 
-			initSalt = new Buffer(data.match(/<init_hs>(.*)<\/init_hs>/)[1], 'base64')
-			sessionId = data.match(/<session_id>(.*)<\/session_id>/)[1]
+		@invokeMethod('ping', input, callback)
 
-			aesKey = Crypto.randomBytes(32)
+	#
 
-			blob = new Buffer(2 + initSalt.length + aesKey.length)
+	favouriteList: (callback) ->
+		input =
+			'terminal-id': @_token.owner
+			extra: $: (name: 'token'), $text: @_token.value
 
-			blob[0] = initSalt.length
-			initSalt.copy(blob, 1)
+		@invokeMethod('get-ab', input, callback)
 
-			blob[1 + initSalt.length] = aesKey.length
-			aesKey.copy(blob, 1 + initSalt.length + 1)
+	#
 
-			encodedKey = publicKey.encrypt(blob, null, 'base64', RSA.RSA_PKCS1_PADDING)
+	operationReport: (input, callback) ->
+		data =
+			'terminal-id': @_token.owner
+			extra: $: (name: 'token'), $text: @_token.value
 
-			# Sends our generated AES key to the server
+			period: 'today'
+			full: 1
 
-			input =
-				command: 'init_get_key'
-				session_id: sessionId
-				key_hs: encodedKey, key_v: 2
+			period: 'custom'
+			'from-date': '25.12.2013'
+			'to-date': '08.01.2014'
 
-			@sendRequest('newcrypt_init_session', input, (error, data) =>
-				unless error?
-					session = Object.create(null)
+		@invokeMethod('get-payments-report', data, callback)
 
-					session.id = sessionId
-					session.key = aesKey
+	#
 
-					callback?(null, session)
-				else
-					callback?(error)
+	makePayment: (input, callback) ->
+		input =
+			'terminal-id': @_token.owner
+			extra: $: (name: 'token'), $text: @_token.value
+			auth: payment: input
 
-				undefined
-			)
+		@invokeMethod('pay', input, callback)
 
-			undefined
-		)
-		
-		@
+	#
 
-	# Creates new session and makes it current
+	checkPayment: (input, callback) ->
+		input =
+			'terminal-id': @_token.owner
+			extra: $: (name: 'token'), $text: @_token.value
+			check: payment: input
 
-	openSession: (publicKey, callback) ->
-		@createSession(publicKey, (error, session) =>
-			@session = session unless error?
-
-			callback?(error)
-
-			undefined
-		)
+		@invokeMethod('pay', input, callback)
 
 # Exported objects
 
