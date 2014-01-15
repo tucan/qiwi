@@ -32,7 +32,7 @@ Description will be added.
 
 - `Buffer` Default `new Buffer([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])`
 
-Default cipher initialization vector for AES-256.
+Default cipher initialization vector for AES.
 
 #### ::constructor()
 
