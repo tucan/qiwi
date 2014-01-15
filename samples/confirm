@@ -3,6 +3,7 @@
 # Required modules
 
 FS = require('fs')
+Util = require('util')
 QIWI = require('..')
 
 # Check provided CLI args
@@ -34,16 +35,24 @@ client.setExtra('client-software', 'Android v2.8.2 MKT')
 
 # Open new session
 
-client.openSession(publicKey, (error) ->
-	console.log('New session opened')
+client.createSession(publicKey, (error, session) ->
+	unless error?
+		client.setSession(session)
 
-	input = phone: phone, password: password, code: code, vcode: vcode
+		console.log('New session opened')
 
-	client.receiveToken(input, (error, data) ->
-		console.log data
+		input = phone: phone, password: password, code: code, vcode: vcode
 
-		undefined
-	)
+		client.receiveToken(input, (error, data) ->
+			unless error?
+				console.log(Util.inspect(data, colors: true))
+			else
+				console.log(error)
+
+			undefined
+		)
+	else
+		console.log(error)
 
 	undefined
 )
