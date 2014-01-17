@@ -217,7 +217,7 @@ class Client
 		extra.push($: (name: key), $text: value) for key, value of @_extra
 
 		envelope.request.extra = extra if extra.length
-		envelope.request[key] = value for key, value of input
+		envelope.request[key] = value for key, value of input	# BUG: extra can be overwriten
 
 		# Make serialization and encode derived text
 
@@ -264,46 +264,41 @@ class Client
 	#
 
 	receiveToken: (input, callback) ->
-		input =
-			'client-id': 'android'
-			'auth-version': '2.0'
+		fullInput = 'client-id': 'android', 'auth-version': '2.0'
+		fullInput[key] = value for key, value of input when value isnt undefined
 
-			phone: input.phone
-			password: input.password
-			code: input.code
-			vcode: input.vcode
-
-		@invokeMethod('oauth-token', input, callback)
+		@invokeMethod('oauth-token', fullInput, callback)
 
 	#
 
-	setToken: (token) ->
+	setAccess: (token, terminalId) ->
 		@_token = token
+		@_terminalId = terminalId
 
 		@
 
 	#
 
-	removeToken: () ->
+	removeAccess: () ->
 		@_token = null
 
 		@
 
 	#
 
-	balanceInfo: (callback) ->
-		input =
-			'terminal-id': @_token.owner
-			extra: $: (name: 'token'), $text: @_token.value
+	accountInfo: (callback) ->
+		fullInput =
+			'terminal-id': @_terminalId
+			extra: $: (name: 'token'), $text: @_token
 
-		@invokeMethod('ping', input, callback)
+		@invokeMethod('ping', fullInput, callback)
 
 	#
 
 	favouriteList: (callback) ->
 		input =
-			'terminal-id': @_token.owner
-			extra: $: (name: 'token'), $text: @_token.value
+			'terminal-id': @_terminalId
+			extra: $: (name: 'token'), $text: @_token
 
 		@invokeMethod('get-ab', input, callback)
 
@@ -336,12 +331,13 @@ class Client
 	#
 
 	checkPayment: (input, callback) ->
-		input =
-			'terminal-id': @_token.owner
-			extra: $: (name: 'token'), $text: @_token.value
+		fullInput =
+			'terminal-id': @_terminalId
+			extra: $: (name: 'token'), $text: @_token
+
 			check: payment: input
 
-		@invokeMethod('pay', input, callback)
+		@invokeMethod('pay', fullInput, callback)
 
 # Exported objects
 
