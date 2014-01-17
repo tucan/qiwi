@@ -16,10 +16,10 @@ unless process.argv.length is 3
 
 	process.exit()
 
-# Read token from file pointed in CLI args
+# Read access info from file pointed in CLI args
 
-tokenPath = process.argv[2]
-token = JSON.parse(FS.readFileSync(tokenPath, encoding: 'utf-8'))
+accessPath = process.argv[2]
+access = JSON.parse(FS.readFileSync(accessPath, encoding: 'utf-8'))
 
 # Read default public key from file
 
@@ -28,12 +28,15 @@ publicKey = FS.readFileSync('../qiwi.pub')
 # Create client
 
 client = new QIWI.Client()
-client._token = token
 
 # Set extra fields to be sent to the server
 
 client.setExtra('udid', 'C4F126614DB586E')
 client.setExtra('client-software', 'Android v2.8.2 MKT')
+
+# Set access token and terminal ID
+
+client.setAccess(access.token, access.terminalId)
 
 # Open new session
 
