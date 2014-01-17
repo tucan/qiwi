@@ -108,6 +108,7 @@ Removes field identified by `name`.
 #### .setAuth(token, terminalId)
 
 - `token` String
+- `terminalId` String | undefined
 
 Sets `token` and `terminalId` for subsequent requests.
 
