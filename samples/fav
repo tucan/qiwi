@@ -1,0 +1,70 @@
+#! /usr/bin/env coffee
+
+# Required modules
+
+FS = require('fs')
+Util = require('util')
+QIWI = require('..')
+
+# Check provided CLI args
+
+unless process.argv.length is 3
+	programName = process.argv[1].match(/[^/]+$/)[0]
+
+	console.log('Displays account info')
+	console.log('Usage: ' + programName + ' TOKEN_PATH')
+
+	process.exit()
+
+# Read token from file pointed in CLI args
+
+tokenPath = process.argv[2]
+token = JSON.parse(FS.readFileSync(tokenPath, encoding: 'utf-8'))
+
+# Read default public key from file
+
+publicKey = FS.readFileSync('../qiwi.pub')
+
+# Create client
+
+client = new QIWI.Client()
+client._token = token
+
+# Set extra fields to be sent to the server
+
+client.setExtra('udid', 'C4F126614DB586E')
+client.setExtra('client-software', 'Android v2.8.2 MKT')
+
+# Open new session
+
+client.createSession(publicKey, (error, session) ->
+	unless error?
+		client.setSession(session)
+
+		# Send main request
+
+		client.favouriteList((error, data) ->
+			unless error?
+				resultCode = data['result-code']
+
+				if Number(resultCode.$text) is 0
+					book = data['book-list']
+
+					# Delete garbage text nodes from XML data
+
+					delete book.$text
+					delete item.$text for item in book['book-item']
+
+					console.log(Util.inspect(book, colors: true, depth: null))
+				else
+					console.log(resultCode)
+			else
+				console.log(error)
+
+			undefined
+		)
+	else
+		console.log(error)
+
+	undefined
+)
