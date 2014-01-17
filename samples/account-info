@@ -16,7 +16,7 @@ unless process.argv.length is 3
 
 	process.exit()
 
-# Read aceess info from file pointed in CLI args
+# Read acceess info from file pointed in CLI args
 
 accessPath = process.argv[2]
 access = JSON.parse(FS.readFileSync(accessPath, encoding: 'utf-8'))

@@ -295,12 +295,14 @@ class Client
 
 	#
 
-	favouriteList: (callback) ->
-		input =
+	chargeList: (input, callback) ->
+		fullInput =
 			'terminal-id': @_terminalId
 			extra: $: (name: 'token'), $text: @_token
 
-		@invokeMethod('get-ab', input, callback)
+			check: payment: input
+
+		@invokeMethod('pay', fullInput, callback)
 
 	#
 
@@ -324,20 +326,10 @@ class Client
 		input =
 			'terminal-id': @_token.owner
 			extra: $: (name: 'token'), $text: @_token.value
+
 			auth: payment: input
 
 		@invokeMethod('pay', input, callback)
-
-	#
-
-	checkPayment: (input, callback) ->
-		fullInput =
-			'terminal-id': @_terminalId
-			extra: $: (name: 'token'), $text: @_token
-
-			check: payment: input
-
-		@invokeMethod('pay', fullInput, callback)
 
 # Exported objects
 
