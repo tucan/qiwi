@@ -104,3 +104,13 @@ Sets extra field with `name` and `value` to be sent to the server on each reques
 - `name` String
 
 Removes field identified by `name`.
+
+#### .setAuth(token, terminalId)
+
+- `token` String
+
+Sets `token` and `terminalId` for subsequent requests.
+
+#### .removeAuth()
+
+Removes previously stored token and terminal ID.
