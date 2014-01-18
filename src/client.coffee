@@ -307,29 +307,24 @@ class Client
 	#
 
 	operationReport: (input, callback) ->
-		data =
-			'terminal-id': @_token.owner
-			extra: $: (name: 'token'), $text: @_token.value
+		fullInput =
+			'terminal-id': @_terminalId
+			extra: $: (name: 'token'), $text: @_token
 
-			period: 'today'
-			full: 1
+		fullInput[key] = value for key, value of input when value isnt undefined
 
-			period: 'custom'
-			'from-date': '25.12.2013'
-			'to-date': '08.01.2014'
-
-		@invokeMethod('get-payments-report', data, callback)
+		@invokeMethod('get-payments-report', fullInput, callback)
 
 	#
 
 	makePayment: (input, callback) ->
-		input =
-			'terminal-id': @_token.owner
-			extra: $: (name: 'token'), $text: @_token.value
+		fullInput =
+			'terminal-id': @_terminalId
+			extra: $: (name: 'token'), $text: @_token
 
 			auth: payment: input
 
-		@invokeMethod('pay', input, callback)
+		@invokeMethod('pay', fullInput, callback)
 
 # Exported objects
 
