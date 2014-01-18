@@ -1,0 +1,97 @@
+#! /usr/bin/env coffee
+
+# Required modules
+
+FS = require('fs')
+Util = require('util')
+QIWI = require('..')
+
+# Check provided CLI args
+
+if process.argv.length < 3
+	programName = process.argv[1].match(/[^/]+$/)[0]
+
+	console.log('Makes payment')
+	console.log('Usage: ' + programName + ' TOKEN_PATH [PARAM1=VALUE1]...')
+
+	process.exit()
+
+# Read access info from file pointed in CLI args
+
+accessPath = process.argv[2]
+access = JSON.parse(FS.readFileSync(accessPath, encoding: 'utf-8'))
+
+# Generate request input data from CLI args
+
+params = {}
+
+for pair in process.argv.slice(3)
+	[key, value] = pair.split('=')
+
+	# Treat these keys in a special way
+
+	if key in ['service-id', 'account-number', 'amount', 'ccy']
+		params.to = {} unless params.to?
+		params.to[key] = value
+
+	# And common keys
+
+	else
+		params.extra = [] unless params.extra?
+		params.extra.push($: (name: key), $text: value)
+
+
+# Read default public key from file
+
+publicKey = FS.readFileSync('../qiwi.pub')
+
+# Create client
+
+client = new QIWI.Client()
+
+# Set extra fields to be sent to the server
+
+client.setExtra('udid', 'C4F126614DB586E')
+client.setExtra('client-software', 'Android v2.8.2 MKT')
+
+# Set access token and terminal ID
+
+client.setAccess(access.token, access.terminalId)
+
+# Open new session
+
+client.createSession(publicKey, (error, session) ->
+	unless error?
+		client.setSession(session)
+
+		input =
+			'transaction-number': Date.now()
+			from: ccy: 643	# 'service-id': 1006
+			to: params
+
+		client.makePayment(input, (error, data) ->
+			unless error?
+				resultCode = data['result-code']
+
+				if Number(resultCode.$text) is 0
+					payment = data.payment
+
+					# Delete garbage text nodes from XML data
+
+					delete payment.$text
+					delete payment.from.$text
+					delete payment.to.$text
+
+					console.log(Util.inspect(data.payment, colors: true, depth: null))
+				else
+					console.log(resultCode)
+			else
+				console.log(error)
+
+			undefined
+		)
+	else
+		console.log(error)
+
+	undefined
+)

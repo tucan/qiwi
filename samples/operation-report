@@ -1,0 +1,76 @@
+#! /usr/bin/env coffee
+
+# Required modules
+
+FS = require('fs')
+Util = require('util')
+QIWI = require('..')
+
+# Check provided CLI args
+
+if process.argv.length < 4
+	programName = process.argv[1].match(/[^/]+$/)[0]
+
+	console.log('Displays operation report')
+	console.log('Usage: ' + programName + ' TOKEN_PATH [PARAM1=VALUE1]...')
+
+	process.exit()
+
+# Read access info from file pointed in CLI args
+
+accessPath = process.argv[2]
+access = JSON.parse(FS.readFileSync(accessPath, encoding: 'utf-8'))
+
+# Generate operation selector from CLI args
+
+selector = {}
+
+for pair in process.argv.slice(3)
+	[key, value] = pair.split('=')
+	selector[key] = value
+
+# Read default public key from file
+
+publicKey = FS.readFileSync('../qiwi.pub')
+
+# Create client
+
+client = new QIWI.Client()
+
+# Set extra fields to be sent to the server
+
+client.setExtra('udid', 'C4F126614DB586E')
+client.setExtra('client-software', 'Android v2.8.2 MKT')
+
+# Set access token and terminal ID
+
+client.setAccess(access.token, access.terminalId)
+
+# Open new session
+
+client.createSession(publicKey, (error, session) ->
+	unless error?
+		client.setSession(session)
+
+		client.operationReport(selector, (error, data) ->
+			unless error?
+				resultCode = data['result-code']
+
+				if Number(resultCode.$text) is 0
+					list = data['p-list']
+
+					delete list.$text	# Delete garbage text nodes from XML data
+
+					console.log(Util.inspect(list, colors: true, depth: null))
+				else
+					console.log(resultCode)
+			else
+				console.log(error)
+
+			undefined
+		)
+	else
+		console.log(error)
+
+	undefined
+)
