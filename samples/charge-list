@@ -70,15 +70,6 @@ client.createSession(publicKey, (error, session) ->
 				if Number(resultCode.$text) is 0
 					check = data.check
 
-					# Delete garbage text nodes from XML data
-
-					delete check.$text
-
-					if Array.isArray(check.payment)
-						delete item.$text for item in check.payment
-					else
-						delete check.payment.$text
-
 					console.log(Util.inspect(check, colors: true, depth: null))
 				else
 					console.log(resultCode)

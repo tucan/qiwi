@@ -53,8 +53,6 @@ client.createSession(publicKey, (error, session) ->
 				if Number(resultCode.$text) is 0
 					balances = data.balances
 
-					delete balances.$text	# Delete garbage text nodes from XML data
-
 					console.log(Util.inspect(balances, colors: true, depth: null))
 				else
 					console.log(resultCode)

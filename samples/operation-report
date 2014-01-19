@@ -59,8 +59,6 @@ client.createSession(publicKey, (error, session) ->
 				if Number(resultCode.$text) is 0
 					list = data['p-list']
 
-					delete list.$text	# Delete garbage text nodes from XML data
-
 					console.log(Util.inspect(list, colors: true, depth: null))
 				else
 					console.log(resultCode)

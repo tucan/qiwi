@@ -76,12 +76,6 @@ client.createSession(publicKey, (error, session) ->
 				if Number(resultCode.$text) is 0
 					payment = data.payment
 
-					# Delete garbage text nodes from XML data
-
-					delete payment.$text
-					delete payment.from.$text
-					delete payment.to.$text
-
 					console.log(Util.inspect(data.payment, colors: true, depth: null))
 				else
 					console.log(resultCode)
