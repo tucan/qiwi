@@ -48,6 +48,7 @@ publicKey = FS.readFileSync('../qiwi.pub')
 # Create client
 
 client = new QIWI.Client()
+client.setHeader('User-Agent', 'android')
 
 # Set extra fields to be sent to the server
 

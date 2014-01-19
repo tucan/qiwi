@@ -71,6 +71,17 @@ Charset which will be used by client while sending requests.
 
 Description will be added.
 
+#### .setHeader(name, value)
+- `name` String
+- `value` String
+
+Sets HTTP header with pointed name and value for subsequent requests.
+
+#### .removeHeader(name)
+- `name` String
+
+Removes header with pointed name.
+
 #### .createSession(publicKey, callback)
 
 - `publicKey` Buffer | String

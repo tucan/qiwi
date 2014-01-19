@@ -1,6 +1,6 @@
 {
 	"name": "qiwi",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Client for QIWI",
 	"keywords": ["qiwi", "money", "payment"],
 	"main": "./lib/index",

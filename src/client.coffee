@@ -13,16 +13,17 @@ QS = require('qs')
 # QIWI client
 
 class Client
-	# Default connection parameters
+	# Connection default parameters
 
 	@SERVER_NAME: 'w.qiwi.com'
 	@SERVER_PORT: 443
 
-	#
+	# Request and response default parameters
 
 	@REQUEST_CHARSET: 'utf-8'
+	@RESPONSE_MAX_SIZE: 1024 * 1024 	# 1M
 
-	# Cipher parameters for the protocol
+	# Cipher parameters
 
 	CIPHER_NAME = 'aes-256-cbc'
 	CIPHER_IV = new Buffer([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
@@ -41,10 +42,12 @@ class Client
 
 		@_charset = @constructor.REQUEST_CHARSET
 
+		@_headers = Object.create(null)
 		@_extra = Object.create(null)
 
 		@_session = null
 		@_token = null
+		@_terminalId = null
 
 	#
 
@@ -87,10 +90,17 @@ class Client
 			'Content-Type': 'application/x-www-form-urlencoded; charset=' + @_charset
 			'Content-Length': body.length
 
+		# Merge const headers and request specific headers
+
+		fullHeaders = Object.create(null)
+
+		fullHeaders[key] = value for key, value of @_headers
+		fullHeaders[key] = value for key, value of headers
+
 		options =
 			host: @_host, port: @_port
 			method: 'POST', path: path
-			headers: headers
+			headers: fullHeaders
 
 		options
 
@@ -127,6 +137,20 @@ class Client
 		)
 
 		undefined
+
+	#
+
+	setHeader: (name, value) ->
+		@_headers[name] = value
+
+		@
+
+	#
+
+	removeHeader: (name) ->
+		delete @_headers[name]
+
+		@
 
 	# Sends init request to the server
 
@@ -281,6 +305,7 @@ class Client
 
 	removeAccess: () ->
 		@_token = null
+		@_terminalId = null
 
 		@
 
