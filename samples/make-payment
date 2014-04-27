@@ -83,10 +83,10 @@ client.createSession(publicKey, (error, session) ->
 			else
 				console.log(error)
 
-			undefined
+			return
 		)
 	else
 		console.log(error)
 
-	undefined
+	return
 )

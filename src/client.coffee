@@ -36,7 +36,7 @@ class Client
 
 	# Object constructor
 
-	constructor: () ->
+	constructor: (options) ->
 		@_host = @constructor.SERVER_NAME
 		@_port = @constructor.SERVER_PORT
 
@@ -60,7 +60,7 @@ class Client
 		blob[1 + nonce.length] = aesKey.length
 		aesKey.copy(blob, 1 + nonce.length + 1)
 
-		encodedKey = publicKey.encrypt(blob, null, 'base64', RSA.RSA_PKCS1_PADDING)
+		publicKey.encrypt(blob, null, 'base64', RSA.RSA_PKCS1_PADDING)
 
 	# Encrypts request body and returns string containing encrypted data
 
@@ -116,7 +116,7 @@ class Client
 		response.on('readable', () ->
 			chunks.push(response.read())
 
-			undefined
+			return
 		)
 
 		response.on('end', () =>
@@ -133,10 +133,10 @@ class Client
 
 			callback(null, output.response)
 
-			undefined
+			return
 		)
 
-		undefined
+		return
 
 	#
 
@@ -170,7 +170,7 @@ class Client
 		request.on('error', (error) ->
 			callback?(error)
 
-			undefined
+			return
 		)
 
 		# Write body and finish request
@@ -208,10 +208,10 @@ class Client
 				else
 					callback?(error)
 
-				undefined
+				return
 			)
 
-			undefined
+			return
 		)
 		
 		@
@@ -262,7 +262,7 @@ class Client
 		request.on('error', (error) ->
 			callback?(error)
 
-			undefined
+			return
 		)
 
 		# Write body and finish request
