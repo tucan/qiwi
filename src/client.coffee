@@ -241,7 +241,16 @@ class Client
 		extra.push($: (name: key), $text: value) for key, value of @_extra
 
 		envelope.request.extra = extra if extra.length
-		envelope.request[key] = value for key, value of input	# BUG: extra can be overwriten
+
+		for key, value of input
+			item = envelope.request[key]
+
+			unless item?
+				envelope.request[key] = value
+			else if Array.isArray(item)
+				item.push(value)
+			else
+				envelope.request[key] = [item, value]
 
 		# Make serialization and encode derived text
 
