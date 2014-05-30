@@ -129,9 +129,11 @@ class Client
 			if text[0..3] is RESPONSE_MARKER
 				text = Iconv.decode(@_decryptBody(text[4..]), 'utf-8')
 
-			output = XML.parse(text)
-
-			callback(null, output.response)
+			try
+				output = XML.parse(text)
+				callback(null, output.response)
+			catch error
+				callback(error)
 
 			return
 		)
