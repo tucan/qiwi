@@ -1,10 +1,10 @@
 {
 	"name": "qiwi",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "Client for QIWI",
 	"keywords": ["qiwi", "money", "payment"],
 	"main": "./lib/index",
-	"licence": "MIT",
+	"license": "MIT",
 	"author": {
 		"name": "Vladimir Andreev",
 		"email": "volodya@netfolder.ru"
